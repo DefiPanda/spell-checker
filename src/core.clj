@@ -1,5 +1,6 @@
-(use '[clojure.java.io :only (reader)])
-(use '[clojure.string :only (split)])
+(ns core
+  (use [clojure.java.io :only (reader)])
+  (use [clojure.string :only (split join)]))
 
 (def NORMALIZE_FACTOR 1000000)
 (def NO_ERROR_REWARD 2000)
@@ -55,18 +56,10 @@
                                                     (let [edit-prop (sentence 1)] (if (= edit-prop nil) 0.5 edit-prop)) dict bigram)]
                                   (if (> prop (acc 1)) [sentence prop] acc))) ["" 0] (possible-sentence words dict edit-dict))) 0) 0))
 
-(defn split-paragraph [paragraph] (split paragraph #"[.?!](?!\d)"))
-
 (defn correct-paragraph [paragraph dict bigram edit-dict]
-  (reduce (fn [acc sentence] (concat acc (correct-sentence sentence dict bigram edit-dict))) [] (split-paragraph paragraph)))
+  (apply str (let [punctuations (re-seq #"[.?!](?!\d)" paragraph)
+        sentences (map (fn [sentence] (correct-sentence sentence dict bigram edit-dict)) (split paragraph #"[.?!](?!\d)"))]
+    (let [joined-sentences (map #(join " " %) sentences)] (map str joined-sentences punctuations)))))
 
 (defn get-counts [filename]
   (reduce (fn [acc line] (assoc acc ((split line #"\t") 0) (Long/parseLong (last (split line #"\t"))))) {} (line-seq (reader filename))))
-
-; test sample sentence
-(let [dict (get-counts "../data/count_1w.txt")
-      bigram (get-counts "../data/count_2w.txt")
-      edit-dict (get-counts "../data/count_1edit.txt")]
-  (println (correct-paragraph "Doing a spell-checker is a great way two learn NLP. Doing a spell-checker is a graet way to learn NLP.
-  Doing a spell-checker is a great way to learnt NLP. Doing a spell-checker is a gkeat way to learn NLP?
-  Doing a spell-checker is a grat way to learn NLP! Doing a spell-checker is a great way to learn NLP." dict bigram edit-dict)))
