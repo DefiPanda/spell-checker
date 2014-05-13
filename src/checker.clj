@@ -49,18 +49,24 @@
               (reduce (fn [sentences candidate] (conj sentences [(concat prev [(str (candidate 0))] next) (candidate 1)]))
                   [] (candidates current dict edit-dict))))) [] (range (count words))))
 
-(defn spell-check [sentence dict bigram edit-dict]
+(defn correct-sentence [sentence dict bigram edit-dict]
   (((let [words (filter #(not= % []) (split sentence #" "))]
     (reduce (fn [acc sentence] (let [prop (get-prop (sentence 0)
                                                     (let [edit-prop (sentence 1)] (if (= edit-prop nil) 0.5 edit-prop)) dict bigram)]
                                   (if (> prop (acc 1)) [sentence prop] acc))) ["" 0] (possible-sentence words dict edit-dict))) 0) 0))
 
+(defn split-paragraph [paragraph] (split paragraph #"[.?!](?!\d)"))
+
+(defn correct-paragraph [paragraph dict bigram edit-dict]
+  (reduce (fn [acc sentence] (concat acc (correct-sentence sentence dict bigram edit-dict))) [] (split-paragraph paragraph)))
+
 (defn get-counts [filename]
-  (reduce (fn [acc line] (assoc acc ((split line #"\t") 0) (Long/parseLong (last (split line #"\t")))))
-    {} (line-seq (reader filename))))
+  (reduce (fn [acc line] (assoc acc ((split line #"\t") 0) (Long/parseLong (last (split line #"\t"))))) {} (line-seq (reader filename))))
 
 ; test sample sentence
 (let [dict (get-counts "../data/count_1w.txt")
       bigram (get-counts "../data/count_2w.txt")
       edit-dict (get-counts "../data/count_1edit.txt")]
-  (println (spell-check "Doing a spell-checker is a great way two learn NLP." dict bigram edit-dict)))
+  (println (correct-paragraph "Doing a spell-checker is a great way two learn NLP. Doing a spell-checker is a graet way to learn NLP.
+  Doing a spell-checker is a great way to learnt NLP. Doing a spell-checker is a gkeat way to learn NLP?
+  Doing a spell-checker is a grat way to learn NLP! Doing a spell-checker is a great way to learn NLP." dict bigram edit-dict)))
